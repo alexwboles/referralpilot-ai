@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReferralPilot AI — Referral Program Tracker</title>
+  <meta name="description" content="Free, local-first referral program tracker for local businesses. Generate codes, build reward rules, track referrals, and rank your referrers.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="logo">✈️</span>
+        <div>
+          <h1>ReferralPilot AI</h1>
+          <p class="tagline">Referral program tracker for local businesses</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <input id="business-name" type="text" placeholder="Your business name" maxlength="60">
+        <button id="clear-data" class="btn ghost">Clear data</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="statsbar" aria-label="Program stats">
+    <div class="stat"><span class="stat-num" id="stat-sent">0</span><span class="stat-label">Sent</span></div>
+    <div class="stat"><span class="stat-num" id="stat-completed">0</span><span class="stat-label">Completed</span></div>
+    <div class="stat"><span class="stat-num" id="stat-rewarded">0</span><span class="stat-label">Rewarded</span></div>
+    <div class="stat"><span class="stat-num" id="stat-conversion">0%</span><span class="stat-label">Sent → Completed</span></div>
+    <div class="stat highlight"><span class="stat-num" id="stat-owed">0 ($0)</span><span class="stat-label">Rewards owed</span></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="codes" role="tab">Codes</button>
+    <button class="tab" data-tab="rule" role="tab">Reward rule</button>
+    <button class="tab" data-tab="tracker" role="tab">Tracker</button>
+    <button class="tab" data-tab="leaderboard" role="tab">Leaderboard</button>
+    <button class="tab" data-tab="share" role="tab">Share messages</button>
+  </nav>
+
+  <main class="panels">
+
+    <section id="panel-codes" class="panel active" role="tabpanel">
+      <div class="card">
+        <h2>Referral code generator</h2>
+        <p class="hint">Pick a business prefix and generate a batch of unique codes.</p>
+        <div class="row">
+          <label class="field">
+            <span>Business prefix</span>
+            <input id="code-prefix" type="text" value="MAIN-ST" maxlength="16" placeholder="e.g. MAIN-ST">
+          </label>
+          <label class="field">
+            <span>Batch size</span>
+            <input id="batch-size" type="number" value="10" min="1" max="200">
+          </label>
+          <button id="gen-btn" class="btn primary">Generate codes</button>
+        </div>
+        <ul id="code-list" class="code-list"></ul>
+      </div>
+    </section>
+
+    <section id="panel-rule" class="panel" role="tabpanel">
+      <div class="card">
+        <h2>Reward rule builder</h2>
+        <p class="hint">Define what the friend gets and what the referrer earns.</p>
+        <div class="row">
+          <label class="field">
+            <span>Give (to the friend)</span>
+            <input id="rule-give" type="number" min="0" step="any" value="10">
+          </label>
+          <label class="field">
+            <span>Get (to the referrer)</span>
+            <input id="rule-get" type="number" min="0" step="any" value="10">
+          </label>
+          <label class="field">
+            <span>Minimum purchase ($, optional)</span>
+            <input id="rule-min" type="number" min="0" step="any" value="25">
+          </label>
+        </div>
+        <fieldset class="radio-group">
+          <legend>Reward type</legend>
+          <label><input type="radio" name="reward-type" value="dollars" checked> $ off</label>
+          <label><input type="radio" name="reward-type" value="percent"> % off</label>
+          <label><input type="radio" name="reward-type" value="freebie"> Freebie</label>
+        </fieldset>
+        <div class="rule-output">
+          <p class="summary" id="rule-summary"></p>
+          <p class="cost">Estimated cost per completed referral: <strong id="rule-cost"></strong></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-tracker" class="panel" role="tabpanel">
+      <div class="card">
+        <h2>Referral tracker</h2>
+        <form id="referral-form" class="row">
+          <label class="field">
+            <span>Code</span>
+            <input id="ref-code" type="text" list="code-datalist" placeholder="PICK-XXXX" required>
+            <datalist id="code-datalist"></datalist>
+          </label>
+          <label class="field">
+            <span>Referrer name</span>
+            <input id="ref-referrer" type="text" placeholder="Who referred?" required>
+          </label>
+          <label class="field">
+            <span>Friend name</span>
+            <input id="ref-friend" type="text" placeholder="Who was referred?" required>
+          </label>
+          <label class="field">
+            <span>Friend email/phone (optional)</span>
+            <input id="ref-contact" type="text" placeholder="friend@example.com">
+          </label>
+          <button class="btn primary" type="submit">Add referral</button>
+        </form>
+        <table class="table">
+          <thead>
+            <tr><th>Code</th><th>Referrer</th><th>Friend</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="referral-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="panel-leaderboard" class="panel" role="tabpanel">
+      <div class="card">
+        <h2>Referrer leaderboard</h2>
+        <p class="hint">Ranked by completed referrals; ties broken by rewarded count.</p>
+        <table class="table">
+          <thead>
+            <tr><th>Referrer</th><th>Sent</th><th>Completed</th><th>Rewarded</th><th>Rewards paid</th></tr>
+          </thead>
+          <tbody id="leaderboard-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="panel-share" class="panel" role="tabpanel">
+      <div class="card">
+        <h2>Share-message templates</h2>
+        <p class="hint">Use <code>{business}</code>, <code>{code}</code>, <code>{give}</code>, <code>{get}</code> placeholders — they fill in live from your rule.</p>
+        <div class="tpl-grid">
+          <div>
+            <h3>SMS template</h3>
+            <textarea id="tpl-sms" rows="5"></textarea>
+            <h4>Preview</h4>
+            <div id="preview-sms" class="preview"></div>
+            <button id="copy-sms" class="btn">Copy SMS</button>
+          </div>
+          <div>
+            <h3>Email template</h3>
+            <textarea id="tpl-email" rows="5"></textarea>
+            <h4>Preview</h4>
+            <div id="preview-email" class="preview pre"></div>
+            <button id="copy-email" class="btn">Copy email</button>
+          </div>
+        </div>
+        <button id="reset-tpl" class="btn ghost">Reset templates to defaults</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>ReferralPilot AI · 100% free · local-first — your data never leaves this browser · no API keys required</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="js/logic.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
