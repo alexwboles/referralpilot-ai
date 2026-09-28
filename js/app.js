@@ -199,10 +199,10 @@
       return;
     }
     rows.forEach(function (row, i) {
-      var medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td>' + medal + esc(row.name) + '</td>' +
+        '<td><span class="rank rank-' + (i + 1) + '">' + (i + 1) + '</span></td>' +
+        '<td>' + esc(row.name) + '</td>' +
         '<td>' + row.sent + '</td>' +
         '<td>' + row.completed + '</td>' +
         '<td>' + row.rewarded + '</td>' +

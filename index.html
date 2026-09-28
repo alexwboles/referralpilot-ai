@@ -13,39 +13,47 @@
       <div class="brand">
         <span class="logo" aria-hidden="true">R</span>
         <div>
-          <h1>ReferralPilot AI</h1>
-          <p class="tagline">Referral program tracker for local businesses</p>
+          <h1>ReferralPilot <span class="ai">AI</span></h1>
+          <p class="tagline">Referral program control room for local businesses</p>
         </div>
       </div>
       <div class="topbar-actions">
-        <input id="business-name" type="text" placeholder="Your business name" maxlength="60">
+        <label class="biz-field"><span>Business</span>
+          <input id="business-name" type="text" placeholder="Your business name" maxlength="60">
+        </label>
         <button id="clear-data" class="btn ghost">Clear data</button>
       </div>
     </div>
   </header>
 
   <section class="statsbar" aria-label="Program stats">
-    <div class="stat"><span class="stat-num" id="stat-sent">0</span><span class="stat-label">Sent</span></div>
-    <div class="stat"><span class="stat-num" id="stat-completed">0</span><span class="stat-label">Completed</span></div>
-    <div class="stat"><span class="stat-num" id="stat-rewarded">0</span><span class="stat-label">Rewarded</span></div>
-    <div class="stat"><span class="stat-num" id="stat-conversion">0%</span><span class="stat-label">Sent → Completed</span></div>
-    <div class="stat highlight"><span class="stat-num" id="stat-owed">0 ($0)</span><span class="stat-label">Rewards owed</span></div>
+    <div class="stats-inner">
+      <div class="stat"><span class="stat-num" id="stat-sent">0</span><span class="stat-label">Sent</span></div>
+      <div class="stat"><span class="stat-num" id="stat-completed">0</span><span class="stat-label">Completed</span></div>
+      <div class="stat"><span class="stat-num" id="stat-rewarded">0</span><span class="stat-label">Rewarded</span></div>
+      <div class="stat"><span class="stat-num" id="stat-conversion">0%</span><span class="stat-label">Sent → Completed</span></div>
+      <div class="stat owed"><span class="stat-num" id="stat-owed">0 ($0)</span><span class="stat-label">Rewards owed</span></div>
+    </div>
   </section>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="codes" role="tab">Codes</button>
-    <button class="tab" data-tab="rule" role="tab">Reward rule</button>
-    <button class="tab" data-tab="tracker" role="tab">Tracker</button>
-    <button class="tab" data-tab="leaderboard" role="tab">Leaderboard</button>
-    <button class="tab" data-tab="share" role="tab">Share messages</button>
+  <nav class="tabs" role="tablist" aria-label="Referral program sections">
+    <div class="tabs-inner">
+      <button class="tab active" data-tab="codes" role="tab">Codes</button>
+      <button class="tab" data-tab="rule" role="tab">Reward rule</button>
+      <button class="tab" data-tab="tracker" role="tab">Tracker</button>
+      <button class="tab" data-tab="leaderboard" role="tab">Leaderboard</button>
+      <button class="tab" data-tab="share" role="tab">Share messages</button>
+    </div>
   </nav>
 
-  <main class="panels">
+  <main class="wrap">
 
     <section id="panel-codes" class="panel active" role="tabpanel">
+      <div class="pagehead">
+        <div><p class="kicker">Code inventory</p><h2>Referral code generator</h2>
+        <p class="hint">Pick a business prefix and mint a batch of unique, shareable codes.</p></div>
+      </div>
       <div class="card">
-        <h2>Referral code generator</h2>
-        <p class="hint">Pick a business prefix and generate a batch of unique codes.</p>
         <div class="row">
           <label class="field">
             <span>Business prefix</span>
@@ -62,9 +70,11 @@
     </section>
 
     <section id="panel-rule" class="panel" role="tabpanel">
+      <div class="pagehead">
+        <div><p class="kicker">Program economics</p><h2>Reward rule builder</h2>
+        <p class="hint">Define what the friend gets and what the referrer earns.</p></div>
+      </div>
       <div class="card">
-        <h2>Reward rule builder</h2>
-        <p class="hint">Define what the friend gets and what the referrer earns.</p>
         <div class="row">
           <label class="field">
             <span>Give (to the friend)</span>
@@ -93,9 +103,12 @@
     </section>
 
     <section id="panel-tracker" class="panel" role="tabpanel">
+      <div class="pagehead">
+        <div><p class="kicker">Pipeline</p><h2>Referral tracker</h2>
+        <p class="hint">Log each referral, then advance it: sent → completed → rewarded.</p></div>
+      </div>
       <div class="card">
-        <h2>Referral tracker</h2>
-        <form id="referral-form" class="row">
+        <form id="referral-form" class="formgrid">
           <label class="field">
             <span>Code</span>
             <input id="ref-code" type="text" list="code-datalist" placeholder="PICK-XXXX" required>
@@ -115,41 +128,49 @@
           </label>
           <button class="btn primary" type="submit">Add referral</button>
         </form>
+        <div class="table-scroll">
         <table class="table">
           <thead>
             <tr><th>Code</th><th>Referrer</th><th>Friend</th><th>Status</th><th>Action</th></tr>
           </thead>
           <tbody id="referral-rows"></tbody>
         </table>
+        </div>
       </div>
     </section>
 
     <section id="panel-leaderboard" class="panel" role="tabpanel">
+      <div class="pagehead">
+        <div><p class="kicker">Top referrers</p><h2>Referrer leaderboard</h2>
+        <p class="hint">Ranked by completed referrals; ties broken by rewarded count.</p></div>
+      </div>
       <div class="card">
-        <h2>Referrer leaderboard</h2>
-        <p class="hint">Ranked by completed referrals; ties broken by rewarded count.</p>
+        <div class="table-scroll">
         <table class="table">
           <thead>
-            <tr><th>Referrer</th><th>Sent</th><th>Completed</th><th>Rewarded</th><th>Rewards paid</th></tr>
+            <tr><th>Rank</th><th>Referrer</th><th>Sent</th><th>Completed</th><th>Rewarded</th><th>Rewards paid</th></tr>
           </thead>
           <tbody id="leaderboard-rows"></tbody>
         </table>
+        </div>
       </div>
     </section>
 
     <section id="panel-share" class="panel" role="tabpanel">
+      <div class="pagehead">
+        <div><p class="kicker">Outreach</p><h2>Share-message templates</h2>
+        <p class="hint">Use <code>{business}</code>, <code>{code}</code>, <code>{give}</code>, <code>{get}</code> placeholders — they fill in live from your rule.</p></div>
+      </div>
       <div class="card">
-        <h2>Share-message templates</h2>
-        <p class="hint">Use <code>{business}</code>, <code>{code}</code>, <code>{give}</code>, <code>{get}</code> placeholders — they fill in live from your rule.</p>
         <div class="tpl-grid">
-          <div>
+          <div class="tpl-card">
             <h3>SMS template</h3>
             <textarea id="tpl-sms" rows="5"></textarea>
             <h4>Preview</h4>
-            <div id="preview-sms" class="preview"></div>
+            <div id="preview-sms" class="preview phone"></div>
             <button id="copy-sms" class="btn">Copy SMS</button>
           </div>
-          <div>
+          <div class="tpl-card">
             <h3>Email template</h3>
             <textarea id="tpl-email" rows="5"></textarea>
             <h4>Preview</h4>
