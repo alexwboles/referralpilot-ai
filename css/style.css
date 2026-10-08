@@ -162,6 +162,15 @@ textarea { min-height: 110px; resize: vertical; }
 .code-list li.empty { font-family: var(--sans); border: 0; background: none; padding: 0; }
 
 /* ---------- tables ---------- */
+.tracker-tools {
+  display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin: 1.1rem 0 0;
+}
+.tracker-tools input[type=search] {
+  flex: 2; min-width: 200px; font: inherit; background: #fff;
+  padding: .62rem .75rem; border: 1.5px solid var(--line); border-radius: 0;
+}
+.tracker-tools select { flex: 1; min-width: 150px; }
+.tracker-tools .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .table-scroll { overflow-x: auto; margin-top: 1.2rem; border: 1px solid var(--line); border-radius: 0; }
 .table { width: 100%; border-collapse: collapse; font-size: .93rem; background: #fff; min-width: 620px; }
 .table th {

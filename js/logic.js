@@ -257,4 +257,79 @@ function computeStats(referrals, rule) {
   };
 }
 
-if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money }; }
+// ---- CSV export ----
+function csvCell(v) {
+  var s = String(v === undefined || v === null ? '' : v);
+  return (/[",\n]/.test(s)) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function referralsToCSV(referrals) {
+  var lines = [[
+    'Code', 'Referrer', 'Friend', 'Friend contact', 'Status', 'Created at'
+  ].map(csvCell).join(',')];
+  (referrals || []).forEach(function (r) {
+    lines.push([r.code, r.referrerName, r.friendName, r.friendContact, r.status, r.createdAt].map(csvCell).join(','));
+  });
+  return lines.join('\n');
+}
+
+// ---- Search + status filter ----
+function filterReferrals(referrals, query, status) {
+  var q = String(query === undefined || query === null ? '' : query).trim().toLowerCase();
+  return (referrals || []).filter(function (r) {
+    if (status && r.status !== status) return false;
+    if (!q) return true;
+    var hay = [r.code, r.referrerName, r.friendName, r.friendContact].join(' ').toLowerCase();
+    return q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
+  });
+}
+
+// ---- Duplicate detection ----
+// Same friend contact (email/phone) or same friend name => likely a duplicate referral.
+function findDuplicate(referrals, friendName, friendContact) {
+  var fn = String(friendName || '').trim().toLowerCase();
+  var fc = String(friendContact || '').trim().toLowerCase();
+  if (!fn && !fc) return null;
+  var hit = null;
+  (referrals || []).forEach(function (r) {
+    if (hit) return;
+    var sameContact = fc && String(r.friendContact || '').trim().toLowerCase() === fc;
+    var sameName = fn && String(r.friendName || '').trim().toLowerCase() === fn;
+    if (sameContact || sameName) hit = r;
+  });
+  return hit;
+}
+
+// ---- Bulk reward ----
+// Advance every completed referral one step to rewarded. Returns count rewarded.
+function markAllRewarded(referrals) {
+  var count = 0;
+  (referrals || []).forEach(function (r) {
+    if (r.status === STATUS.COMPLETED) { advanceStatus(r, STATUS.REWARDED); count++; }
+  });
+  return count;
+}
+
+// ---- Monthly conversion trend ----
+function monthKey(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2);
+}
+
+function conversionByMonth(referrals) {
+  var buckets = {};
+  (referrals || []).forEach(function (r) {
+    var k = monthKey(r.createdAt) || 'unknown';
+    if (!buckets[k]) buckets[k] = { month: k, sent: 0, converted: 0 };
+    buckets[k].sent++;
+    if (r.status === STATUS.COMPLETED || r.status === STATUS.REWARDED) buckets[k].converted++;
+  });
+  return Object.keys(buckets).sort().map(function (k) {
+    var b = buckets[k];
+    b.conversionRate = b.sent ? Math.round(b.converted / b.sent * 1000) / 10 : 0;
+    return b;
+  });
+}
+
+if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money, referralsToCSV: referralsToCSV, filterReferrals: filterReferrals, findDuplicate: findDuplicate, markAllRewarded: markAllRewarded, conversionByMonth: conversionByMonth }; }

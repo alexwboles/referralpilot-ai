@@ -67,6 +67,26 @@ ok('flow7: empty referrer rejected', throws(() => L.createReferral(codes[6], '',
 ok('flow7: batch size 0 rejected', throws(() => L.generateBatch('X', 0)));
 ok('flow7: terminal state cannot advance', throws(() => L.advanceStatus(fr)));
 
+// Flow 8: duplicate guard — same friend re-referred is caught before adding
+const dupA = L.createReferral(codes[7], 'Ivy', 'Jon', 'jon@example.com');
+ok('flow8: finds dup by contact', L.findDuplicate([dupA], 'Jonathan', 'jon@example.com').code === dupA.code);
+ok('flow8: finds dup by name', L.findDuplicate([dupA], 'jon', 'other@x.com').code === dupA.code);
+ok('flow8: no false positive', L.findDuplicate([dupA], 'Kim', 'kim@x.com') === null);
+ok('flow8: dup blocked on distinct friend', L.findDuplicate([dupA], 'Kim', 'kim@x.com') === null);
+
+// Flow 9: end-of-month routine — bulk reward, CSV export, trend review
+const m1 = L.createReferral(codes[8], 'Leo', 'Mia', '');
+const m2 = L.createReferral(codes[9], 'Leo', 'Ned', '');
+L.advanceStatus(m1); L.advanceStatus(m2);
+const paid = L.markAllRewarded([m1, m2]);
+ok('flow9: bulk reward pays both', paid === 2 && m1.status === 'rewarded' && m2.status === 'rewarded');
+const csv = L.referralsToCSV([m1, m2]);
+ok('flow9: csv export covers both', csv.split('\n').length === 3 && csv.indexOf('rewarded') !== -1);
+const trend = L.conversionByMonth([m1, m2]);
+ok('flow9: trend shows 100% month', trend.length === 1 && trend[0].conversionRate === 100);
+const st9 = L.computeStats([m1, m2], rule);
+ok('flow9: stats agree after bulk reward', st9.rewardsOwedCount === 0 && st9.rewarded === 2);
+
 process.exit(fail ? 1 : 0);
 EOF
 RC=$?

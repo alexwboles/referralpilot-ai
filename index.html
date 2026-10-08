@@ -128,12 +128,35 @@
           </label>
           <button class="btn primary" type="submit">Add referral</button>
         </form>
+        <div class="tracker-tools">
+          <input id="ref-search" type="search" placeholder="Search code, referrer, friend…" aria-label="Search referrals">
+          <select id="ref-status-filter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="sent">Sent</option>
+            <option value="completed">Completed</option>
+            <option value="rewarded">Rewarded</option>
+          </select>
+          <button id="reward-all" class="btn">Reward all owed</button>
+          <button id="export-referrals" class="btn ghost">Export CSV</button>
+        </div>
         <div class="table-scroll">
         <table class="table">
           <thead>
             <tr><th>Code</th><th>Referrer</th><th>Friend</th><th>Status</th><th>Action</th></tr>
           </thead>
           <tbody id="referral-rows"></tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Monthly trend</h3>
+        <p class="hint">Conversion rate by the month each referral was sent.</p>
+        <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr><th>Month</th><th>Sent</th><th>Converted</th><th>Conversion</th></tr>
+          </thead>
+          <tbody id="trend-rows"></tbody>
         </table>
         </div>
       </div>

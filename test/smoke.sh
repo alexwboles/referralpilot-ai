@@ -85,7 +85,55 @@ ok('stats conversion rate', stats.conversionRate === 75);
 ok('stats rewards owed', stats.rewardsOwedCount === 2 && stats.rewardsOwedValue === 20);
 
 // 3h. Exports sanity
-ok('exports all public functions', ['generateCode','generateBatch','buildRule','advanceStatus','leaderboard','fillTemplate','computeStats','createReferral','isValidCodeFormat'].every(k => typeof L[k] === 'function'));
+ok('exports all public functions', ['generateCode','generateBatch','buildRule','advanceStatus','leaderboard','fillTemplate','computeStats','createReferral','isValidCodeFormat','referralsToCSV','filterReferrals','findDuplicate','markAllRewarded','conversionByMonth'].every(k => typeof L[k] === 'function'));
+
+// 3i. Referral CSV export
+const csvRefs = [
+  L.createReferral('B-AA2A', 'Alice', 'Bob', 'bob@example.com'),
+  L.createReferral('B-BB2B', 'Alice', 'Carol "CJ"', '')
+];
+csvRefs[0].status = 'completed';
+const csv = L.referralsToCSV(csvRefs);
+const csvLines = csv.split('\n');
+ok('referralsToCSV header + 2 rows', csvLines.length === 3 && /^Code,Referrer,Friend/.test(csvLines[0]));
+ok('referralsToCSV escapes quotes', csvLines[2].indexOf('"Carol ""CJ"""') !== -1);
+ok('referralsToCSV carries status', csvLines[1].indexOf(',completed,') !== -1);
+ok('referralsToCSV empty list = header only', L.referralsToCSV([]).split('\n').length === 1);
+
+// 3j. Search + status filter
+const fre = L.filterReferrals(csvRefs, 'alice', '');
+ok('filterReferrals matches referrer', fre.length === 2);
+ok('filterReferrals narrows by friend', L.filterReferrals(csvRefs, 'carol', '').length === 1);
+ok('filterReferrals case-insensitive', L.filterReferrals(csvRefs, 'BOB', '').length === 1);
+ok('filterReferrals status filter', L.filterReferrals(csvRefs, '', 'completed').length === 1);
+ok('filterReferrals query+status combine', L.filterReferrals(csvRefs, 'alice', 'sent').length === 1);
+ok('filterReferrals no match', L.filterReferrals(csvRefs, 'zzz', '').length === 0);
+
+// 3k. Duplicate detection
+const dup1 = L.findDuplicate(csvRefs, 'Bob', '');
+ok('findDuplicate by friend name', dup1 && dup1.code === 'B-AA2A');
+const dup2 = L.findDuplicate(csvRefs, 'Nobody', 'bob@example.com');
+ok('findDuplicate by contact', dup2 && dup2.code === 'B-AA2A');
+ok('findDuplicate no match', L.findDuplicate(csvRefs, 'Zed', 'zed@x.com') === null);
+ok('findDuplicate empty input', L.findDuplicate(csvRefs, '', '') === null);
+
+// 3l. Bulk reward + monthly trend
+const bulk = [
+  L.createReferral('B-CC3C', 'Amy', 'F1', ''), L.createReferral('B-DD4D', 'Amy', 'F2', ''),
+  L.createReferral('B-EE5E', 'Amy', 'F3', '')
+];
+L.advanceStatus(bulk[0]); L.advanceStatus(bulk[1]); // 2 completed, 1 sent
+bulk[0].createdAt = '2026-09-05T00:00:00.000Z';
+bulk[1].createdAt = '2026-10-05T00:00:00.000Z';
+bulk[2].createdAt = '2026-10-06T00:00:00.000Z';
+const rewarded = L.markAllRewarded(bulk);
+ok('markAllRewarded counts', rewarded === 2);
+ok('markAllRewarded advances all', bulk.every(r => r.status !== 'completed'));
+const trend = L.conversionByMonth(bulk);
+ok('conversionByMonth buckets', trend.length === 2 && trend[0].month === '2026-09' && trend[1].month === '2026-10');
+ok('conversionByMonth math', trend[0].sent === 1 && trend[0].converted === 1 && trend[0].conversionRate === 100);
+ok('conversionByMonth partial', trend[1].sent === 2 && trend[1].converted === 1 && trend[1].conversionRate === 50);
+ok('markAllRewarded empty is 0', L.markAllRewarded([]) === 0);
 
 process.exit(fail ? 1 : 0);
 EOF
@@ -98,6 +146,15 @@ else
   PASS=$((PASS + 1))
   echo "PASS: embedded node logic checks"
 fi
+
+# --- 4. New UI wiring ---
+for id in ref-search ref-status-filter export-referrals reward-all trend-rows; do
+  if grep -q "id=\"$id\"" index.html; then pass "wired: #$id in HTML"; else fail "missing #$id in HTML"; fi
+done
+for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referralsToCSV; do
+  if grep -q "$fn" js/app.js; then pass "wired: $fn in app.js"; else fail "missing $fn in app.js"; fi
+done
+grep -q "tracker-tools" css/style.css && pass "tracker-tools styles" || fail "tracker-tools styles missing"
 
 echo "RESULT: $PASS passed, $FAIL failed"
 exit "$FAIL"

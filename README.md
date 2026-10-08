@@ -6,8 +6,9 @@ A referral program tracker for local businesses. Generate referral codes, design
 
 1. **Referral code generator** — business prefix + batch generation (e.g. 10 codes like `MAIN-ST-7K2Q`), uniqueness guaranteed within a batch, copy-to-clipboard per code, persisted in `localStorage`.
 2. **Reward rule builder** — set give/get amounts, reward type ($ off / % off / freebie), and an optional minimum purchase. Get a plain-English summary ("Give $10, get $10, min purchase $25") plus the estimated cost per completed referral.
-3. **Referral tracker** — add referrals (code, referrer, friend) and advance them through sent → completed → rewarded. Skipping steps is rejected (you can't go straight from sent to rewarded).
+3. **Referral tracker** — add referrals (code, referrer, friend) and advance them through sent → completed → rewarded. Skipping steps is rejected (you can't go straight from sent to rewarded). Duplicate friends are caught before adding. Search by code/referrer/friend and filter by status; export the pipeline to CSV; bulk-reward everyone owed in one click.
 4. **Referrer leaderboard** — ranked by completed referrals, ties broken by rewarded count. Shows sent/completed/rewarded per referrer and total rewards paid.
+5. **Monthly trend** — conversion rate by the month each referral was sent, so you can see the program's momentum.
 5. **Share-message templates** — SMS + email templates with `{business}`, `{code}`, `{give}`, `{get}` placeholders and a live preview filled in from your current rule.
 6. **Stats bar** — totals for sent/completed/rewarded, sent→completed conversion rate, and rewards owed (completed but not yet rewarded × get amount).
 

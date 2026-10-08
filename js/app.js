@@ -153,14 +153,31 @@
   function statusLabel(s) {
     return s === 'sent' ? 'Sent' : s === 'completed' ? 'Completed' : 'Rewarded';
   }
+  function refSearch() { return $('ref-search') ? $('ref-search').value : ''; }
+  function refStatusFilter() { return $('ref-status-filter') ? $('ref-status-filter').value : ''; }
+  function owedCount() {
+    return state.referrals.filter(function (r) { return r.status === 'completed'; }).length;
+  }
+  function updateRewardAllBtn() {
+    var btn = $('reward-all');
+    if (!btn) return;
+    var n = owedCount();
+    btn.textContent = n ? 'Reward all owed (' + n + ')' : 'Reward all owed';
+    btn.disabled = !n;
+  }
   function renderReferrals() {
     var tbody = $('referral-rows');
     tbody.innerHTML = '';
-    if (!state.referrals.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">No referrals yet — add one above.</td></tr>';
+    var list = filterReferrals(state.referrals, refSearch(), refStatusFilter());
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">' +
+        (state.referrals.length ? 'No referrals match your search.' : 'No referrals yet — add one above.') +
+        '</td></tr>';
+      updateRewardAllBtn();
       return;
     }
-    state.referrals.forEach(function (ref, i) {
+    list.forEach(function (ref) {
+      var i = state.referrals.indexOf(ref);
       var tr = document.createElement('tr');
       var next = nextStatus(ref);
       var action = '';
@@ -183,10 +200,36 @@
         try {
           advanceStatus(ref);
           save(LS.referrals, state.referrals);
-          renderReferrals(); renderLeaderboard(); renderStats();
+          renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
         } catch (e) { showToast(e.message); }
       });
     });
+    updateRewardAllBtn();
+  }
+
+  // ---------- Monthly trend ----------
+  function renderTrend() {
+    var rows = conversionByMonth(state.referrals);
+    var tbody = $('trend-rows');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No referrals yet — trends appear once you log some.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function (r) {
+      return '<tr><td><strong>' + esc(r.month) + '</strong></td><td>' + r.sent + '</td><td>' +
+        r.converted + '</td><td>' + r.conversionRate + '%</td></tr>';
+    }).join('');
+  }
+
+  function downloadCSV(filename, text) {
+    var blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
 
   // ---------- Leaderboard ----------
@@ -279,6 +322,11 @@
     // Add referral
     $('referral-form').addEventListener('submit', function (e) {
       e.preventDefault();
+      var dup = findDuplicate(state.referrals, $('ref-friend').value, $('ref-contact').value);
+      if (dup) {
+        showToast('Already referred: ' + dup.friendName + ' (' + dup.code + ', ' + statusLabel(dup.status) + '). Not added again.');
+        return;
+      }
       try {
         var ref = createReferral(
           $('ref-code').value,
@@ -289,9 +337,25 @@
         state.referrals.push(ref);
         save(LS.referrals, state.referrals);
         e.target.reset();
-        renderReferrals(); renderLeaderboard(); renderStats();
+        renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
         showToast('Referral added.');
       } catch (err) { showToast(err.message); }
+    });
+
+    // Tracker tools: search + status filter + export + bulk reward
+    $('ref-search').addEventListener('input', renderReferrals);
+    $('ref-status-filter').addEventListener('change', renderReferrals);
+    $('export-referrals').addEventListener('click', function () {
+      if (!state.referrals.length) { showToast('No referrals to export yet.'); return; }
+      downloadCSV('referralpilot-referrals.csv', referralsToCSV(state.referrals));
+      showToast('Exported ' + state.referrals.length + ' referral(s) to CSV.');
+    });
+    $('reward-all').addEventListener('click', function () {
+      var n = markAllRewarded(state.referrals);
+      if (!n) { showToast('Nothing owed — no completed referrals waiting.'); return; }
+      save(LS.referrals, state.referrals);
+      renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
+      showToast('Rewarded ' + n + ' referral' + (n === 1 ? '' : 's') + '.');
     });
 
     // Templates
@@ -338,6 +402,7 @@
     renderRule();
     renderReferrals();
     renderLeaderboard();
+    renderTrend();
     renderTemplatePreviews();
   }
 
