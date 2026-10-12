@@ -244,3 +244,10 @@ textarea { min-height: 110px; resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- referrer tiers (sharp, no rounded edges) ---------- */
+.badge-tier-bronze { background: #f6ede3; color: #8a5a2b; border: 1px solid #e6d3b8; }
+.badge-tier-silver { background: #eef1f5; color: #5b6b80; border: 1px solid #d3dbe4; }
+.badge-tier-gold { background: var(--accent-soft); color: var(--accent-deep); border: 1px solid #f3dfb8; }
+.badge-tier-platinum { background: #e9ecf4; color: #3d4a75; border: 1px solid #c9d2e8; }
+.count { color: var(--accent-deep); font-weight: 700; }

@@ -135,6 +135,48 @@ ok('conversionByMonth math', trend[0].sent === 1 && trend[0].converted === 1 && 
 ok('conversionByMonth partial', trend[1].sent === 2 && trend[1].converted === 1 && trend[1].conversionRate === 50);
 ok('markAllRewarded empty is 0', L.markAllRewarded([]) === 0);
 
+// 3l. Channels: normalization + conversion by channel
+ok('normalizeChannel sms', L.normalizeChannel('SMS') === 'sms');
+ok('normalizeChannel in-person', L.normalizeChannel(' In-Person ') === 'in-person');
+ok('normalizeChannel rejects junk', L.normalizeChannel('carrier pigeon') === '');
+const ch1 = L.createReferral(L.generateCode('C'), 'A', 'B', '', 'sms');
+ok('createReferral stores channel', ch1.channel === 'sms');
+const ch2 = L.createReferral(L.generateCode('C'), 'A', 'D', '');
+ok('createReferral channel defaults empty', ch2.channel === '');
+L.advanceStatus(ch1); // sms: 1 sent->completed
+const chReport = L.conversionByChannel([ch1, ch2]);
+ok('conversionByChannel buckets', chReport.length === 2);
+ok('conversionByChannel sms converts 100%', chReport[0].channel === 'sms' && chReport[0].sent === 1 && chReport[0].conversionRate === 100);
+ok('conversionByChannel unknown bucket', chReport[1].channel === 'unknown' && chReport[1].sent === 1 && chReport[1].conversionRate === 0);
+
+// 3m. Referrer tiers
+ok('tierFor 0 = Bronze', L.tierFor(0).name === 'Bronze' && L.tierFor(0).nextTier === 'Silver' && L.tierFor(0).needed === 3);
+ok('tierFor 3 = Silver', L.tierFor(3).name === 'Silver' && L.tierFor(3).needed === 3);
+ok('tierFor 6 = Gold', L.tierFor(6).name === 'Gold' && L.tierFor(6).nextTier === 'Platinum' && L.tierFor(6).needed === 6);
+ok('tierFor 12 = Platinum top', L.tierFor(12).name === 'Platinum' && L.tierFor(12).nextTier === null && L.tierFor(12).needed === 0);
+ok('tierFor clamps junk', L.tierFor(-5).name === 'Bronze' && L.tierFor('abc').name === 'Bronze');
+
+// 3n. Stale referrals + follow-up nudge text
+const stale1 = L.createReferral(L.generateCode('S'), 'Alice', 'Bob', 'bob@x.com', 'email');
+stale1.createdAt = '2026-09-01T00:00:00.000Z'; // 41 days before ref
+const fresh1 = L.createReferral(L.generateCode('S'), 'Alice', 'Zed', '');
+const conv1 = L.createReferral(L.generateCode('S'), 'Alice', 'Yara', '');
+conv1.createdAt = '2026-09-01T00:00:00.000Z';
+L.advanceStatus(conv1);
+const stales = L.staleReferrals([fresh1, stale1, conv1], 21, '2026-10-12T00:00:00.000Z');
+ok('staleReferrals finds old sent', stales.length === 1 && stales[0].friendName === 'Bob');
+ok('staleReferrals ignores fresh + converted', stales.every(r => r.status === 'sent'));
+const nudge = L.followUpText(stale1, 'Main St Bakery');
+ok('followUpText fills names/code/business', ['Bob', 'Alice', stale1.code, 'Main St Bakery'].every(s => nudge.includes(s)));
+
+// 3o. Leaderboard carries tier names
+const tRule = L.buildRule({ give: 5, get: 5, type: 'dollars' });
+const tRefs = [];
+for (let i = 0; i < 3; i++) { const r = L.createReferral(L.generateCode('T'), 'Goldie', 'F' + i, ''); L.advanceStatus(r); tRefs.push(r); }
+tRefs.push(L.createReferral(L.generateCode('T'), 'Newbie', 'G', ''));
+const tlb = L.leaderboard(tRefs, tRule);
+ok('leaderboard tier on rows', tlb[0].name === 'Goldie' && tlb[0].tier === 'Silver' && tlb[1].tier === 'Bronze');
+
 process.exit(fail ? 1 : 0);
 EOF
 NODE_RC=$?
@@ -148,10 +190,10 @@ else
 fi
 
 # --- 4. New UI wiring ---
-for id in ref-search ref-status-filter export-referrals reward-all trend-rows; do
+for id in ref-search ref-status-filter export-referrals reward-all trend-rows ref-channel channel-rows stale-rows stale-count; do
   if grep -q "id=\"$id\"" index.html; then pass "wired: #$id in HTML"; else fail "missing #$id in HTML"; fi
 done
-for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referralsToCSV; do
+for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referralsToCSV conversionByChannel tierFor staleReferrals followUpText; do
   if grep -q "$fn" js/app.js; then pass "wired: $fn in app.js"; else fail "missing $fn in app.js"; fi
 done
 grep -q "tracker-tools" css/style.css && pass "tracker-tools styles" || fail "tracker-tools styles missing"

@@ -128,8 +128,19 @@ function buildRule(opts) {
 
 // ---- Referral tracker ----
 
-// Referral shape: {code, referrerName, friendName, friendContact, status}
-function createReferral(code, referrerName, friendName, friendContact) {
+var CHANNELS = ['sms', 'email', 'in-person', 'social', 'other'];
+var CHANNEL_LABELS = {
+  'sms': 'SMS', 'email': 'Email', 'in-person': 'In person',
+  'social': 'Social', 'other': 'Other', 'unknown': 'Not recorded'
+};
+
+function normalizeChannel(c) {
+  c = String(c === null || c === undefined ? '' : c).trim().toLowerCase();
+  return CHANNELS.indexOf(c) >= 0 ? c : '';
+}
+
+// Referral shape: {code, referrerName, friendName, friendContact, channel, status}
+function createReferral(code, referrerName, friendName, friendContact, channel) {
   code = String(code || '').trim().toUpperCase();
   if (!code) throw new Error('A referral code is required.');
   if (!isValidCodeFormat(code)) throw new Error('Invalid referral code format: ' + code);
@@ -142,6 +153,7 @@ function createReferral(code, referrerName, friendName, friendContact) {
     referrerName: ref,
     friendName: friend,
     friendContact: String(friendContact || '').trim(),
+    channel: normalizeChannel(channel),
     status: STATUS.SENT,
     createdAt: new Date().toISOString(),
     history: [{ status: STATUS.SENT, at: new Date().toISOString() }]
@@ -199,6 +211,7 @@ function leaderboard(referrals, rule) {
   var getAmount = rule && isFinite(Number(rule.get)) ? Number(rule.get) : 0;
   rows.forEach(function (row) {
     row.rewardsPaid = Math.round(row.rewarded * getAmount * 100) / 100;
+    row.tier = tierFor(row.completed).name;
   });
   rows.sort(function (a, b) {
     if (b.completed !== a.completed) return b.completed - a.completed;
@@ -332,4 +345,72 @@ function conversionByMonth(referrals) {
   });
 }
 
-if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money, referralsToCSV: referralsToCSV, filterReferrals: filterReferrals, findDuplicate: findDuplicate, markAllRewarded: markAllRewarded, conversionByMonth: conversionByMonth }; }
+// ---- Conversion by channel ----
+// Which outreach channel converts best? Sorted by conversion rate desc.
+function conversionByChannel(referrals) {
+  var buckets = {};
+  (referrals || []).forEach(function (r) {
+    var ch = normalizeChannel(r.channel) || 'unknown';
+    if (!buckets[ch]) buckets[ch] = { channel: ch, label: CHANNEL_LABELS[ch] || ch, sent: 0, converted: 0 };
+    buckets[ch].sent++;
+    if (r.status === STATUS.COMPLETED || r.status === STATUS.REWARDED) buckets[ch].converted++;
+  });
+  var out = Object.keys(buckets).map(function (k) {
+    var b = buckets[k];
+    b.conversionRate = b.sent ? Math.round(b.converted / b.sent * 1000) / 10 : 0;
+    return b;
+  });
+  out.sort(function (a, b) { return b.conversionRate - a.conversionRate || b.sent - a.sent; });
+  return out;
+}
+
+// ---- Referrer tiers ----
+// Bronze <3, Silver 3+, Gold 6+, Platinum 12+ completed referrals.
+var TIERS = [
+  { min: 0, name: 'Bronze' },
+  { min: 3, name: 'Silver' },
+  { min: 6, name: 'Gold' },
+  { min: 12, name: 'Platinum' }
+];
+
+function tierFor(completed) {
+  completed = Math.max(0, Math.floor(Number(completed) || 0));
+  var tier = TIERS[0], next = null;
+  for (var i = 0; i < TIERS.length; i++) {
+    if (completed >= TIERS[i].min) tier = TIERS[i];
+    else { next = TIERS[i]; break; }
+  }
+  return {
+    name: tier.name,
+    completed: completed,
+    nextTier: next ? next.name : null,
+    needed: next ? next.min - completed : 0
+  };
+}
+
+// ---- Stale-referral follow-up ----
+// Referrals stuck in "sent" longer than maxAgeDays (default 21), oldest first,
+// so the business can nudge friends who never converted.
+function staleReferrals(referrals, maxAgeDays, now) {
+  var days = Math.max(1, Math.floor(Number(maxAgeDays) || 21));
+  var t = now ? new Date(now).getTime() : Date.now();
+  if (isNaN(t)) t = Date.now();
+  var cutoff = t - days * 86400000;
+  return (referrals || []).filter(function (r) {
+    if (r.status !== STATUS.SENT) return false;
+    var at = new Date(r.createdAt).getTime();
+    return !isNaN(at) && at < cutoff;
+  }).sort(function (a, b) {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
+
+// Copy-ready nudge message for a stale referral.
+function followUpText(ref, business) {
+  business = business || 'our business';
+  return 'Hi ' + ref.friendName + ' — just checking in! Your friend ' + ref.referrerName +
+    ' shared a referral for ' + business + ' with you. Use code ' + ref.code +
+    ' and you will get the referral deal. Let me know if you have any questions!';
+}
+
+if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money, referralsToCSV: referralsToCSV, filterReferrals: filterReferrals, findDuplicate: findDuplicate, markAllRewarded: markAllRewarded, conversionByMonth: conversionByMonth, CHANNELS: CHANNELS, CHANNEL_LABELS: CHANNEL_LABELS, normalizeChannel: normalizeChannel, conversionByChannel: conversionByChannel, TIERS: TIERS, tierFor: tierFor, staleReferrals: staleReferrals, followUpText: followUpText }; }

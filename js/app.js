@@ -200,7 +200,7 @@
         try {
           advanceStatus(ref);
           save(LS.referrals, state.referrals);
-          renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
+          renderReferrals(); renderLeaderboard(); renderStats(); renderTrend(); renderChannels(); renderStale();
         } catch (e) { showToast(e.message); }
       });
     });
@@ -221,6 +221,57 @@
     }).join('');
   }
 
+  // ---------- By-channel conversion ----------
+  function channelLabel(ch) {
+    return (CHANNEL_LABELS && CHANNEL_LABELS[ch]) || ch || 'Not recorded';
+  }
+  function renderChannels() {
+    var rows = conversionByChannel(state.referrals);
+    var tbody = $('channel-rows');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No referrals yet — channel stats appear once you log some.</td></tr>';
+      return;
+    }
+    var best = rows[0].conversionRate;
+    tbody.innerHTML = rows.map(function (r) {
+      var star = (rows.length > 1 && r.conversionRate === best) ? ' ★ best' : '';
+      return '<tr><td><strong>' + esc(channelLabel(r.channel)) + '</strong>' + star + '</td><td>' + r.sent +
+        '</td><td>' + r.converted + '</td><td>' + r.conversionRate + '%</td></tr>';
+    }).join('');
+  }
+
+  // ---------- Stale-referral follow-up ----------
+  function renderStale() {
+    var rows = staleReferrals(state.referrals, 21);
+    var wrap = $('stale-wrap');
+    var tbody = $('stale-rows');
+    var count = $('stale-count');
+    if (count) count.textContent = rows.length ? '(' + rows.length + ')' : '';
+    if (!rows.length) {
+      wrap.style.display = '';
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Nothing stale — every referral is fresh or already converted.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    rows.forEach(function (ref) {
+      var i = state.referrals.indexOf(ref);
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + esc(ref.friendName) + (ref.friendContact ? '<br><small>' + esc(ref.friendContact) + '</small>' : '') + '</td>' +
+        '<td>' + esc(ref.referrerName) + '</td>' +
+        '<td><span class="code">' + esc(ref.code) + '</span></td>' +
+        '<td>' + esc((ref.createdAt || '').slice(0, 10)) + '</td>' +
+        '<td><button class="btn small" data-nudge="' + i + '">Copy nudge</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('[data-nudge]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var ref = state.referrals[Number(btn.getAttribute('data-nudge'))];
+        copyText(followUpText(ref, state.business || 'our business'), btn);
+      });
+    });
+  }
+
   function downloadCSV(filename, text) {
     var blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
@@ -238,14 +289,17 @@
     var tbody = $('leaderboard-rows');
     tbody.innerHTML = '';
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">No referrers yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No referrers yet.</td></tr>';
       return;
     }
     rows.forEach(function (row, i) {
+      var tier = tierFor(row.completed);
+      var tierSub = tier.nextTier ? ' · ' + tier.needed + ' to ' + esc(tier.nextTier) : ' · top';
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td><span class="rank rank-' + (i + 1) + '">' + (i + 1) + '</span></td>' +
         '<td>' + esc(row.name) + '</td>' +
+        '<td><span class="badge tier-' + tier.name.toLowerCase() + '">' + esc(tier.name) + '</span><br><small>' + tierSub + '</small></td>' +
         '<td>' + row.sent + '</td>' +
         '<td>' + row.completed + '</td>' +
         '<td>' + row.rewarded + '</td>' +
@@ -332,12 +386,13 @@
           $('ref-code').value,
           $('ref-referrer').value,
           $('ref-friend').value,
-          $('ref-contact').value
+          $('ref-contact').value,
+          $('ref-channel').value
         );
         state.referrals.push(ref);
         save(LS.referrals, state.referrals);
         e.target.reset();
-        renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
+        renderReferrals(); renderLeaderboard(); renderStats(); renderTrend(); renderChannels(); renderStale();
         showToast('Referral added.');
       } catch (err) { showToast(err.message); }
     });
@@ -354,7 +409,7 @@
       var n = markAllRewarded(state.referrals);
       if (!n) { showToast('Nothing owed — no completed referrals waiting.'); return; }
       save(LS.referrals, state.referrals);
-      renderReferrals(); renderLeaderboard(); renderStats(); renderTrend();
+      renderReferrals(); renderLeaderboard(); renderStats(); renderTrend(); renderChannels(); renderStale();
       showToast('Rewarded ' + n + ' referral' + (n === 1 ? '' : 's') + '.');
     });
 
@@ -403,6 +458,8 @@
     renderReferrals();
     renderLeaderboard();
     renderTrend();
+    renderChannels();
+    renderStale();
     renderTemplatePreviews();
   }
 

@@ -87,6 +87,27 @@ ok('flow9: trend shows 100% month', trend.length === 1 && trend[0].conversionRat
 const st9 = L.computeStats([m1, m2], rule);
 ok('flow9: stats agree after bulk reward', st9.rewardsOwedCount === 0 && st9.rewarded === 2);
 
+// Flow 10: channels -> tier -> stale follow-up, end to end
+const codes10 = L.generateBatch('CH', 4);
+const a1 = L.createReferral(codes10[0], 'Maya', 'Noah', '', 'sms');
+const a2 = L.createReferral(codes10[1], 'Maya', 'Owen', '', 'email');
+const a3 = L.createReferral(codes10[2], 'Maya', 'Pia', '', 'sms');
+const a4 = L.createReferral(codes10[3], 'Maya', 'Quinn', '', 'in-person');
+L.advanceStatus(a1); L.advanceStatus(a3);          // sms: 2/2 converted
+a2.createdAt = '2026-09-01T00:00:00.000Z';           // stale (sent, old)
+a4.createdAt = '2026-09-01T00:00:00.000Z';           // stale too
+const ch10 = L.conversionByChannel([a1, a2, a3, a4]);
+ok('flow10: best channel is sms at 100%', ch10[0].channel === 'sms' && ch10[0].conversionRate === 100);
+const lb10 = L.leaderboard([a1, a2, a3, a4], rule);
+ok('flow10: Maya hits Silver at 3 completed? no — 2 completed is Bronze', lb10[0].tier === 'Bronze');
+L.advanceStatus(a1, 'rewarded');
+const lb10b = L.leaderboard([a1, a2, a3, a4], rule);
+ok('flow10: still Bronze after reward (completed counts)', lb10b[0].tier === 'Bronze' && lb10b[0].completed === 2);
+const stale10 = L.staleReferrals([a1, a2, a3, a4], 21, '2026-10-12T00:00:00.000Z');
+ok('flow10: stale list = Owen + Quinn', stale10.length === 2 && stale10[0].friendName === 'Owen');
+const nudge10 = L.followUpText(stale10[0], 'Main St Bakery');
+ok('flow10: nudge text ready to copy', nudge10.includes('Owen') && nudge10.includes(stale10[0].code));
+
 process.exit(fail ? 1 : 0);
 EOF
 RC=$?
