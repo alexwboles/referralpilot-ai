@@ -8,8 +8,9 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
+<div class="shell">
+  <aside class="sidebar">
+    <div class="side-inner">
       <div class="brand">
         <span class="logo" aria-hidden="true">R</span>
         <div>
@@ -17,14 +18,21 @@
           <p class="tagline">Referral program control room for local businesses</p>
         </div>
       </div>
-      <div class="topbar-actions">
-        <label class="biz-field"><span>Business</span>
-          <input id="business-name" type="text" placeholder="Your business name" maxlength="60">
-        </label>
-        <button id="clear-data" class="btn ghost">Clear data</button>
-      </div>
+      <nav class="tabs" role="tablist" aria-label="Referral program sections">
+        <button class="tab active" data-tab="codes" role="tab">Codes</button>
+        <button class="tab" data-tab="rule" role="tab">Reward rule</button>
+        <button class="tab" data-tab="tracker" role="tab">Tracker</button>
+        <button class="tab" data-tab="leaderboard" role="tab">Leaderboard</button>
+        <button class="tab" data-tab="share" role="tab">Share messages</button>
+      </nav>
+      <label class="biz-field"><span>Business</span>
+        <input id="business-name" type="text" placeholder="Your business name" maxlength="60">
+      </label>
+      <button id="clear-data" class="btn ghost">Clear data</button>
+      <div class="local-pill" aria-hidden="true"><i></i> Local only</div>
     </div>
-  </header>
+  </aside>
+  <div class="mainwrap">
 
   <section class="statsbar" aria-label="Program stats">
     <div class="stats-inner">
@@ -35,16 +43,6 @@
       <div class="stat owed"><span class="stat-num" id="stat-owed">0 ($0)</span><span class="stat-label">Rewards owed</span></div>
     </div>
   </section>
-
-  <nav class="tabs" role="tablist" aria-label="Referral program sections">
-    <div class="tabs-inner">
-      <button class="tab active" data-tab="codes" role="tab">Codes</button>
-      <button class="tab" data-tab="rule" role="tab">Reward rule</button>
-      <button class="tab" data-tab="tracker" role="tab">Tracker</button>
-      <button class="tab" data-tab="leaderboard" role="tab">Leaderboard</button>
-      <button class="tab" data-tab="share" role="tab">Share messages</button>
-    </div>
-  </nav>
 
   <main class="wrap">
 
@@ -103,6 +101,8 @@
           <p class="summary" id="rule-summary"></p>
           <p class="cost">Estimated cost per completed referral: <strong id="rule-cost"></strong></p>
         </div>
+        <h3>Friend offer preview <span class="hint-inline">— as your customers see it</span></h3>
+        <div id="offer-preview" class="offer-preview"></div>
       </div>
     </section>
 
@@ -207,6 +207,7 @@
         <p class="hint">Ranked by completed referrals; ties broken by rewarded count. Tiers: Bronze (0+), Silver (3+), Gold (6+), Platinum (12+).</p></div>
       </div>
       <div class="card">
+        <div id="podium" class="podium"></div>
         <div class="table-scroll">
         <table class="table">
           <thead>
@@ -265,6 +266,9 @@
   <footer class="footer">
     <p>ReferralPilot AI · 100% free · local-first — your data never leaves this browser · no API keys required</p>
   </footer>
+
+  </div><!-- /mainwrap -->
+</div><!-- /shell -->
 
   <div id="toast" class="toast" role="status"></div>
 

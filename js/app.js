@@ -50,7 +50,12 @@
   }
 
   function currentRule() {
-    return state.rule || buildRule({ give: 10, get: 10, type: 'dollars', minPurchase: 25 });
+    var r = state.rule || buildRule({ give: 10, get: 10, type: 'dollars', minPurchase: 25 });
+    // Rebuild if storage holds raw/partial rule options (no summary) — corrupt or legacy data.
+    if (!r.summary) {
+      r = buildRule({ give: r.give, get: r.get, type: r.type, minPurchase: r.minPurchase });
+    }
+    return r;
   }
 
   function persistAll() {
@@ -172,7 +177,28 @@
     var r = currentRule();
     $('rule-summary').textContent = r.summary;
     $('rule-cost').textContent = money(r.costPerReferral);
+    renderOfferPreview(r);
     renderTemplatePreviews();
+  }
+
+  // Friend-offer preview (ReferralCandy-style): the offer as a customer sees it,
+  // rebuilt live from the rule inputs.
+  function renderOfferPreview(r) {
+    var box = $('offer-preview');
+    if (!box) return;
+    r = r || currentRule();
+    var biz = ((state.business || '').trim() || 'Your business');
+    function amt(v) {
+      if (r.type === 'percent') return v + '% off';
+      if (r.type === 'freebie') return 'a free gift';
+      return money(v) + ' off';
+    }
+    box.innerHTML = '<div class="offer-card">' +
+      '<div class="offer-eyebrow">' + esc(biz) + ' · friends with benefits</div>' +
+      '<div class="offer-give">Give friends <strong>' + esc(amt(r.give)) + '</strong></div>' +
+      '<div class="offer-get">You get <strong>' + esc(amt(r.get)) + '</strong> for every friend who buys</div>' +
+      (r.minPurchase > 0 ? '<div class="offer-fine">Minimum purchase of ' + money(r.minPurchase) + ' applies.</div>' : '') +
+      '<div class="offer-cta">Claim your code</div></div>';
   }
 
   // ---------- Referrals ----------
@@ -321,8 +347,24 @@
   }
 
   // ---------- Leaderboard ----------
+  function renderPodium(rows) {
+    var box = $('podium');
+    if (!box) return;
+    if (!rows.length) { box.innerHTML = ''; return; }
+    var medals = ['1st', '2nd', '3rd'];
+    box.innerHTML = '<div class="podium-steps">' + rows.slice(0, 3).map(function (row, i) {
+      var tier = tierFor(row.completed);
+      return '<div class="pstep p' + (i + 1) + '">' +
+        '<div class="pmedal">' + medals[i] + '</div>' +
+        '<div class="pname">' + esc(row.name) + '</div>' +
+        '<div class="pscore">' + row.completed + ' converted</div>' +
+        '<div class="pbadge tier-' + tier.name.toLowerCase() + '">' + esc(tier.name) + '</div></div>';
+    }).join('') + '</div>';
+  }
+
   function renderLeaderboard() {
     var rows = leaderboard(state.referrals, state.rule);
+    renderPodium(rows);
     var tbody = $('leaderboard-rows');
     tbody.innerHTML = '';
     if (!rows.length) {
@@ -331,11 +373,16 @@
       rows.forEach(function (row, i) {
       var tier = tierFor(row.completed);
       var tierSub = tier.nextTier ? ' · ' + tier.needed + ' to ' + esc(tier.nextTier) : ' · top';
+      var tierBar = '';
+      if (tier.nextTier) {
+        var pct = Math.min(100, Math.round(tier.completed / (tier.completed + tier.needed) * 100));
+        tierBar = '<span class="tierbar" title="' + tier.needed + ' to ' + esc(tier.nextTier) + '"><i style="width:' + pct + '%"></i></span>';
+      }
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td><span class="rank rank-' + (i + 1) + '">' + (i + 1) + '</span></td>' +
         '<td>' + esc(row.name) + '</td>' +
-        '<td><span class="badge tier-' + tier.name.toLowerCase() + '">' + esc(tier.name) + '</span><br><small>' + tierSub + '</small></td>' +
+        '<td><span class="badge tier-' + tier.name.toLowerCase() + '">' + esc(tier.name) + '</span><br><small>' + tierSub + '</small>' + tierBar + '</td>' +
         '<td>' + row.sent + '</td>' +
         '<td>' + row.completed + '</td>' +
         '<td>' + row.rewarded + '</td>' +

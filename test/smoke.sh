@@ -237,6 +237,11 @@ for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referr
   if grep -q "$fn" js/app.js; then pass "wired: $fn in app.js"; else fail "missing $fn in app.js"; fi
 done
 grep -q "tracker-tools" css/style.css && pass "tracker-tools styles" || fail "tracker-tools styles missing"
+grep -q "class=\"shell\"" index.html && grep -q "local-pill" index.html && pass "sidebar shell" || fail "sidebar shell missing"
+grep -q 'id="podium"' index.html && grep -q 'id="offer-preview"' index.html && pass "podium + offer preview containers" || fail "containers missing"
+grep -q "renderPodium" js/app.js && grep -q "renderOfferPreview" js/app.js && grep -q "tierbar" js/app.js && pass "podium + offer preview + tier bars wired" || fail "redesign wiring missing"
+grep -q "podium-steps" css/style.css && grep -q "offer-card" css/style.css && pass "podium + offer card styles" || fail "redesign styles missing"
+! grep -E "border-radius:[[:space:]]*[1-9]" css/style.css | grep -qv "50%" && pass "no rounded edges in CSS" || fail "rounded edges found in CSS"
 
 echo "RESULT: $PASS passed, $FAIL failed"
 exit "$FAIL"
