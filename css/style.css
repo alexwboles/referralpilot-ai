@@ -251,3 +251,20 @@ textarea { min-height: 110px; resize: vertical; }
 .badge-tier-gold { background: var(--accent-soft); color: var(--accent-deep); border: 1px solid #f3dfb8; }
 .badge-tier-platinum { background: #e9ecf4; color: #3d4a75; border: 1px solid #c9d2e8; }
 .count { color: var(--accent-deep); font-weight: 700; }
+
+/* ---------- second sweep: batch expiry, spotlight, ROI ---------- */
+.batch-head { list-style: none; margin: .9rem 0 .2rem; font-size: .9rem; color: var(--muted, #6b6156); }
+.exp-dead { color: #a33; font-weight: 600; }
+.exp-ok { color: var(--accent-deep); }
+.badge-exp { background: var(--accent-soft); color: var(--accent-deep); font-size: .72rem; padding: .1rem .4rem; margin-left: .5rem; }
+.badge-expired { background: #fbe3e3; color: #a33; font-size: .72rem; padding: .1rem .4rem; margin-left: .5rem; }
+.spot { border-left: 4px solid var(--accent); padding: .6rem .9rem; background: var(--accent-soft); margin-top: .6rem; }
+.spot-name { font-size: 1.25rem; font-weight: 700; }
+.spot-sub { font-size: .82rem; color: var(--muted, #6b6156); margin-bottom: .3rem; }
+.spot-text { margin: .4rem 0 .7rem; }
+.roi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .7rem; margin-top: .6rem; }
+.roi-stat { border: 1px solid var(--line, #e5ddcb); padding: .7rem .9rem; background: #fff; }
+.roi-num { font-size: 1.35rem; font-weight: 700; }
+.roi-stat.pos .roi-num { color: #2c7a3d; }
+.roi-stat.neg .roi-num { color: #a33; }
+.roi-lab { font-size: .78rem; color: var(--muted, #6b6156); }

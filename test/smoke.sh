@@ -177,6 +177,46 @@ tRefs.push(L.createReferral(L.generateCode('T'), 'Newbie', 'G', ''));
 const tlb = L.leaderboard(tRefs, tRule);
 ok('leaderboard tier on rows', tlb[0].name === 'Goldie' && tlb[0].tier === 'Silver' && tlb[1].tier === 'Bronze');
 
+// 3p. Second sweep: batch expiry, reward ledger, ROI, referrer of the month
+const seeded = (function () { let s = 42; return function () { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }; })();
+const bx = L.makeBatch('OCT', 3, '2026-01-01', seeded);
+ok('makeBatch keeps 3 unique codes + expiry', bx.codes.length === 3 && bx.expiresAt === '2026-01-01' && bx.prefix === 'OCT');
+const bx2 = L.makeBatch('NOV', 2, '', seeded);
+ok('makeBatch without expiry', bx2.expiresAt === '' && bx2.codes.length === 2);
+ok('codeExpiry finds batch expiry', L.codeExpiry([bx, bx2], bx.codes[0]) === '2026-01-01');
+ok('codeExpiry unknown code -> null', L.codeExpiry([bx], 'NOPE-1234') === null);
+ok('isCodeExpired true for past batch', L.isCodeExpired([bx], bx.codes[0], '2026-10-13') === true);
+ok('isCodeExpired false before expiry', L.isCodeExpired([bx], bx.codes[0], '2025-12-31') === false);
+ok('isCodeExpired false without expiry', L.isCodeExpired([bx2], bx2.codes[0], '2026-10-13') === false);
+
+let ledger = [];
+ledger = L.logReward(ledger, { referralId: 'r1', referrer: 'Maya', friend: 'Noah', code: bx2.codes[0], amount: 10 });
+ledger = L.logReward(ledger, { referralId: 'r2', referrer: 'Maya', friend: 'Owen', code: bx2.codes[1], amount: -5 });
+const lt = L.ledgerTotals(ledger);
+ok('ledgerTotals count + clamp', lt.count === 2 && lt.total === 10);
+ok('logReward pure (input untouched)', ledger.length === 2);
+const roi1 = L.programROI([], ledger, 120);
+ok('programROI no wins -> negative net', roi1.rewardedCount === 0 && roi1.net === -10);
+const rr1 = L.createReferral(L.generateCode('R'), 'Maya', 'Pia', '');
+rr1.status = 'rewarded';
+const roi2 = L.programROI([rr1], ledger, 120);
+ok('programROI 1 win @120 -> +110 net', roi2.estRevenue === 120 && roi2.rewardCost === 10 && roi2.net === 110);
+
+const sm1 = L.createReferral(L.generateCode('S'), 'Zara', 'A', '');
+const sm2 = L.createReferral(L.generateCode('S'), 'Zara', 'B', '');
+const sm3 = L.createReferral(L.generateCode('S'), 'Yusuf', 'C', '');
+[sm1, sm2, sm3].forEach(r => { r.createdAt = '2026-10-05T00:00:00.000Z'; L.advanceStatus(r); });
+const old1 = L.createReferral(L.generateCode('S'), 'Oldie', 'D', '');
+old1.createdAt = '2026-09-05T00:00:00.000Z';
+L.advanceStatus(old1);
+const spot = L.referrerOfMonth([sm1, sm2, sm3, old1], '2026-10');
+ok('referrerOfMonth picks Zara (2 in Oct)', spot && spot.name === 'Zara' && spot.completed === 2 && spot.month === '2026-10');
+ok('referrerOfMonth none when empty', L.referrerOfMonth([], '2026-10') === null);
+const stxt = L.spotlightText(spot, 'Main St Bakery');
+ok('spotlightText names + month + count', stxt.includes('Zara') && stxt.includes('2026-10') && stxt.includes('2 completed') && stxt.includes('Main St Bakery'));
+ok('spotlightText singular', L.spotlightText({ month: '2026-10', name: 'Solo', completed: 1 }, '').includes('1 completed referral!'));
+ok('spotlightText empty on null', L.spotlightText(null, 'X') === '');
+
 process.exit(fail ? 1 : 0);
 EOF
 NODE_RC=$?
@@ -190,10 +230,10 @@ else
 fi
 
 # --- 4. New UI wiring ---
-for id in ref-search ref-status-filter export-referrals reward-all trend-rows ref-channel channel-rows stale-rows stale-count; do
+for id in ref-search ref-status-filter export-referrals reward-all trend-rows ref-channel channel-rows stale-rows stale-count batch-expiry avg-value spotlight-box roi-box; do
   if grep -q "id=\"$id\"" index.html; then pass "wired: #$id in HTML"; else fail "missing #$id in HTML"; fi
 done
-for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referralsToCSV conversionByChannel tierFor staleReferrals followUpText; do
+for fn in filterReferrals findDuplicate markAllRewarded conversionByMonth referralsToCSV conversionByChannel tierFor staleReferrals followUpText makeBatch isCodeExpired logReward programROI referrerOfMonth spotlightText renderSpotlight renderROI; do
   if grep -q "$fn" js/app.js; then pass "wired: $fn in app.js"; else fail "missing $fn in app.js"; fi
 done
 grep -q "tracker-tools" css/style.css && pass "tracker-tools styles" || fail "tracker-tools styles missing"

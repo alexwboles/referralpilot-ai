@@ -413,4 +413,88 @@ function followUpText(ref, business) {
     ' and you will get the referral deal. Let me know if you have any questions!';
 }
 
-if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money, referralsToCSV: referralsToCSV, filterReferrals: filterReferrals, findDuplicate: findDuplicate, markAllRewarded: markAllRewarded, conversionByMonth: conversionByMonth, CHANNELS: CHANNELS, CHANNEL_LABELS: CHANNEL_LABELS, normalizeChannel: normalizeChannel, conversionByChannel: conversionByChannel, TIERS: TIERS, tierFor: tierFor, staleReferrals: staleReferrals, followUpText: followUpText }; }
+// ---- Second sweep: code batch expiry ------------------------------------------
+// A batch: {id, prefix, codes[], createdAt, expiresAt}. Legacy flat codes never expire.
+function makeBatch(prefix, n, expiresAt, rand) {
+  var codes = generateBatch(prefix, n, rand);
+  return {
+    id: 'batch_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e6).toString(36),
+    prefix: normalizePrefix(prefix),
+    codes: codes,
+    createdAt: new Date().toISOString().slice(0, 10),
+    expiresAt: expiresAt || ''
+  };
+}
+// Expiry date of a code: from its batch, or null (never expires / unknown).
+function codeExpiry(batches, code) {
+  for (var i = 0; i < (batches || []).length; i++) {
+    var b = batches[i];
+    if (b.codes && b.codes.indexOf(code) !== -1) return b.expiresAt || null;
+  }
+  return null;
+}
+function isCodeExpired(batches, code, todayISO) {
+  var exp = codeExpiry(batches, code);
+  if (!exp) return false;
+  var today = todayISO || new Date().toISOString().slice(0, 10);
+  return exp < today;
+}
+
+// ---- Second sweep: reward cost ledger -----------------------------------------
+// entry: {id, at, referralId, referrer, friend, code, amount}
+function logReward(ledger, entry) {
+  entry = entry || {};
+  var list = (ledger || []).slice();
+  list.push({
+    id: 'rw_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e6).toString(36),
+    at: new Date().toISOString(),
+    referralId: entry.referralId || '',
+    referrer: entry.referrer || '',
+    friend: entry.friend || '',
+    code: entry.code || '',
+    amount: Math.max(0, Number(entry.amount) || 0)
+  });
+  return list;
+}
+function ledgerTotals(ledger) {
+  var t = { count: 0, total: 0 };
+  (ledger || []).forEach(function (e) { t.count++; t.total += Number(e.amount) || 0; });
+  t.total = Math.round(t.total * 100) / 100;
+  return t;
+}
+// Program ROI: estimated new-customer revenue (rewarded referrals × avg value)
+// vs. actual reward spend from the ledger.
+function programROI(referrals, ledger, avgCustomerValue) {
+  var v = Math.max(0, Number(avgCustomerValue) || 0);
+  var won = (referrals || []).filter(function (r) { return r.status === STATUS.REWARDED; }).length;
+  var cost = ledgerTotals(ledger).total;
+  var revenue = Math.round(won * v * 100) / 100;
+  return {
+    rewardedCount: won, avgValue: v, estRevenue: revenue,
+    rewardCost: cost, net: Math.round((revenue - cost) * 100) / 100
+  };
+}
+
+// ---- Second sweep: referrer of the month ---------------------------------------
+function referrerOfMonth(referrals, month) {
+  var m = month || new Date().toISOString().slice(0, 7);
+  var counts = {};
+  (referrals || []).forEach(function (r) {
+    if ((r.status === STATUS.COMPLETED || r.status === STATUS.REWARDED) && monthKey(r.createdAt) === m) {
+      counts[r.referrerName] = (counts[r.referrerName] || 0) + 1;
+    }
+  });
+  var best = null;
+  Object.keys(counts).forEach(function (name) {
+    if (!best || counts[name] > best.count) best = { name: name, count: counts[name] };
+  });
+  return best ? { month: m, name: best.name, completed: best.count } : null;
+}
+function spotlightText(spot, business) {
+  if (!spot) return '';
+  return 'Big thanks to ' + spot.name + ' — our top referrer for ' + spot.month +
+    ' with ' + spot.completed + ' completed referral' + (spot.completed === 1 ? '' : 's') + '!' +
+    (business ? ' — ' + business : '');
+}
+
+if (typeof module !== 'undefined' && module.exports) { module.exports = { generateCode: generateCode, generateBatch: generateBatch, isValidCodeFormat: isValidCodeFormat, normalizePrefix: normalizePrefix, buildRule: buildRule, REWARD_TYPES: REWARD_TYPES, STATUS: STATUS, createReferral: createReferral, canAdvance: canAdvance, nextStatus: nextStatus, advanceStatus: advanceStatus, countByStatus: countByStatus, leaderboard: leaderboard, DEFAULT_TEMPLATES: DEFAULT_TEMPLATES, fillTemplate: fillTemplate, templateVarsFromRule: templateVarsFromRule, computeStats: computeStats, money: money, referralsToCSV: referralsToCSV, filterReferrals: filterReferrals, findDuplicate: findDuplicate, markAllRewarded: markAllRewarded, conversionByMonth: conversionByMonth, CHANNELS: CHANNELS, CHANNEL_LABELS: CHANNEL_LABELS, normalizeChannel: normalizeChannel, conversionByChannel: conversionByChannel, TIERS: TIERS, tierFor: tierFor, staleReferrals: staleReferrals, followUpText: followUpText, makeBatch: makeBatch, codeExpiry: codeExpiry, isCodeExpired: isCodeExpired, logReward: logReward, ledgerTotals: ledgerTotals, programROI: programROI, referrerOfMonth: referrerOfMonth, spotlightText: spotlightText }; }

@@ -63,6 +63,10 @@
             <span>Batch size</span>
             <input id="batch-size" type="number" value="10" min="1" max="200">
           </label>
+          <label class="field">
+            <span>Codes expire (optional)</span>
+            <input id="batch-expiry" type="date" aria-label="Batch expiry date">
+          </label>
           <button id="gen-btn" class="btn primary">Generate codes</button>
         </div>
         <ul id="code-list" class="code-list"></ul>
@@ -211,6 +215,22 @@
           <tbody id="leaderboard-rows"></tbody>
         </table>
         </div>
+      </div>
+      <div class="card">
+        <div><p class="kicker">Recognition</p><h2>Referrer of the month</h2>
+        <p class="hint">Auto-picked from this month's completed referrals — share the shout-out.</p></div>
+        <div id="spotlight-box"></div>
+      </div>
+      <div class="card">
+        <div><p class="kicker">Is it paying off?</p><h2>Program ROI</h2>
+        <p class="hint">Rewarded referrals × your average new-customer value, minus the actual reward spend logged above.</p></div>
+        <div class="row">
+          <label class="field">
+            <span>Average new-customer value ($)</span>
+            <input id="avg-value" type="number" min="0" step="1" placeholder="e.g. 120">
+          </label>
+        </div>
+        <div id="roi-box"></div>
       </div>
     </section>
 

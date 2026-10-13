@@ -108,6 +108,33 @@ ok('flow10: stale list = Owen + Quinn', stale10.length === 2 && stale10[0].frien
 const nudge10 = L.followUpText(stale10[0], 'Main St Bakery');
 ok('flow10: nudge text ready to copy', nudge10.includes('Owen') && nudge10.includes(stale10[0].code));
 
+// Flow 11: batch expiry -> expired code flagged; reward ledger -> ROI; referrer of the month
+const seeded11 = (function () { let s = 7; return function () { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }; })();
+const bOld = L.makeBatch('HOL', 2, '2026-01-01', seeded11);
+const bNew = L.makeBatch('SPR', 2, '2027-01-01', seeded11);
+const batches = [bOld, bNew];
+ok('flow11: expired batch code flagged', L.isCodeExpired(batches, bOld.codes[0], '2026-10-13') === true);
+ok('flow11: fresh batch code not flagged', L.isCodeExpired(batches, bNew.codes[0], '2026-10-13') === false);
+const rule11 = L.buildRule({ give: 10, get: 10, type: 'dollars' });
+let ledger11 = [];
+const r11a = L.createReferral(bNew.codes[0], 'Priya', 'Sam', '');
+r11a.createdAt = '2026-10-03T00:00:00.000Z';
+L.advanceStatus(r11a); // -> completed
+L.advanceStatus(r11a); // -> rewarded
+ledger11 = L.logReward(ledger11, { referralId: r11a.id, referrer: r11a.referrerName, friend: r11a.friendName, code: r11a.code, amount: rule11.costPerReferral });
+const r11b = L.createReferral(bNew.codes[1], 'Priya', 'Tom', '');
+r11b.createdAt = '2026-10-04T00:00:00.000Z';
+L.advanceStatus(r11b); // -> completed
+L.advanceStatus(r11b); // -> rewarded
+ledger11 = L.logReward(ledger11, { referralId: r11b.id, referrer: r11b.referrerName, friend: r11b.friendName, code: r11b.code, amount: rule11.costPerReferral });
+const lt11 = L.ledgerTotals(ledger11);
+ok('flow11: ledger has 2 rewards totaling $20', lt11.count === 2 && lt11.total === 20);
+const roi11 = L.programROI([r11a, r11b], ledger11, 150);
+ok('flow11: ROI 2 rewarded wins @150 -> revenue 300, net 280', roi11.estRevenue === 300 && roi11.rewardCost === 20 && roi11.net === 280);
+const spot11 = L.referrerOfMonth([r11a, r11b], '2026-10');
+ok('flow11: Priya is referrer of the month (2 completed)', spot11 && spot11.name === 'Priya' && spot11.completed === 2);
+ok('flow11: shout-out text', L.spotlightText(spot11, 'Acme').includes('Priya') && L.spotlightText(spot11, 'Acme').includes('2 completed referrals'));
+
 process.exit(fail ? 1 : 0);
 EOF
 RC=$?
